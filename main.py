@@ -75,7 +75,7 @@ def collect_leaf(node, _leaf):
 
 
 def calculate_letter_probabilities(_text):
-    letter_counts = Counter(_text.lower())
+    letter_counts = Counter(_text)
     total_letters = sum(letter_counts.values())
     letter_probabilities = {_letter: count / total_letters for _letter, count in letter_counts.items()}
     return letter_probabilities
@@ -86,12 +86,32 @@ def encode(_text, array):
     huffman_tree = code(trees)
     leaf = []
     collect_leaf(huffman_tree, leaf)
+    for item in leaf:
+        print(f'Letter: {item.letter} - Binary: {item.binary}')
     binary = ''
-    for letter in _text.lower():
+    for letter in _text:
         for item in leaf:
             if item.letter == letter:
                 binary += item.binary
     return binary
+
+
+def binarystring_to_bytes(binary):
+    initial = len(binary)
+    if len(binary) % 8 != 0:
+        binary = binary.zfill((len(binary) // 8 + 1) * 8)
+    bytes_list = []
+    initial = len(binary) - initial
+    for i in range(0, len(binary), 8):
+        byte = int(binary[i:i + 8], 2)
+        bytes_list.append(byte)
+    return initial, bytes(bytes_list)
+
+
+def bytes_to_binary(_bytes):
+    encoded_text = _bytes.decode('latin1')
+    encoded_text = ''.join(format(ord(char), '08b') for char in encoded_text)
+    return encoded_text
 
 
 def decode(binary, _dict):
@@ -100,9 +120,9 @@ def decode(binary, _dict):
     decoded_text = ''
     current_node = huffman_tree
     for bit in binary:
-        if bit == '0':
+        if bit == '0' or bit == 48:
             current_node = current_node.left_predecessor
-        elif bit == '1':
+        elif bit == '1' or bit == 49:
             current_node = current_node.right_predecessor
         if not current_node.has_left_predecessor() and not current_node.has_right_predecessor():
             decoded_text += current_node.letter
@@ -114,32 +134,28 @@ def compress_file(file_path, output_path):
     with open(file_path, 'r') as file:
         content = file.read()
     _probabilities = calculate_letter_probabilities(content)
-    _encoded = encode(content, _probabilities).encode('utf-8')
-    with open(output_path, 'wb') as file:
+    encoded = encode(content, _probabilities)
+    added, encoded = binarystring_to_bytes(encoded)
+    with open('probabilities.dump', 'wb') as file:
         pickle.dump(_probabilities, file)
-        file.write(_encoded)
+        pickle.dump(added, file)
+    with open(output_path, 'wb') as file:
+        file.write(encoded)
+    print(f'Compressed file {file_path} saved to {output_path}')
 
 
 def decompress_file(file_path, output_path):
-    with open(file_path, 'rb') as file:
+    with open('probabilities.dump', 'rb') as file:
         probabilities = pickle.load(file)
+        added = pickle.load(file)
+    with open(file_path, 'rb') as file:
         encoded_text = file.read()
-    trees = initialize_tree(probabilities)
-    huffman_tree = code(trees)
-    decoded_text = ''
-    current_node = huffman_tree
-    for bit in encoded_text:
-        if bit == 48:
-            current_node = current_node.left_predecessor
-        elif bit == 49:
-            current_node = current_node.right_predecessor
-        if not current_node.has_left_predecessor() and not current_node.has_right_predecessor():
-            decoded_text += current_node.letter
-            current_node = huffman_tree
+    _decoded_text = decode(bytes_to_binary(encoded_text)[added:], probabilities)
     with open(output_path, 'w') as file:
-        file.write(decoded_text)
+        file.write(_decoded_text)
+    print(f'Decompressed file {file_path} saved to {output_path}')
 
 
 if __name__ == '__main__':
-    compress_file('input.txt', 'output.zip')
-    decompress_file('output.zip', 'output.txt')
+    compress_file('input.txt', 'compressed.zip')
+    decompress_file('compressed.zip', 'output.txt')
