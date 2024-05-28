@@ -39,7 +39,7 @@ def setbinary(node):
 def print_tree(node, indent=''):
     if node is None:
         return
-    print(indent + str(node.value))
+    print(indent + str(node.value) + ' ' + node.letter)
     print_tree(node.left_predecessor, indent + '  ')
     print_tree(node.right_predecessor, indent + '  ')
 
@@ -84,6 +84,7 @@ def calculate_letter_probabilities(_text):
 def encode(_text, array):
     trees = initialize_tree(array)
     huffman_tree = code(trees)
+    print_tree(huffman_tree)
     leaf = []
     collect_leaf(huffman_tree, leaf)
     for item in leaf:
